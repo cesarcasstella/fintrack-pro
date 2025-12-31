@@ -1,39 +1,87 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import { Wallet, TrendingUp, TrendingDown, ArrowUpDown } from "lucide-react";
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { Wallet, TrendingUp, TrendingDown, ArrowUpDown, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
 import Link from "next/link";
 import { Account, Transaction, Category } from "@/types/database";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  StatCard,
+  TransactionRow,
+  ProgressRing,
+  Button,
+  Badge,
+} from "@/components/ui";
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+type TransactionWithRelations = Transaction & {
+  account: Pick<Account, "name" | "color"> | null;
+  category: Pick<Category, "name" | "icon" | "color"> | null;
+};
 
-  if (!user) {
-    redirect("/auth/login");
-  }
+export default function DashboardPage() {
+  const [accounts, setAccounts] = useState<Account[] | null>(null);
+  const [transactions, setTransactions] = useState<TransactionWithRelations[] | null>(null);
+  const [monthlyIncome, setMonthlyIncome] = useState(0);
+  const [monthlyExpenses, setMonthlyExpenses] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch accounts
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("*")
-    .eq("is_active", true)
-    .order("created_at", { ascending: true }) as { data: Account[] | null };
+  useEffect(() => {
+    const fetchData = async () => {
+      const supabase = createClient();
 
-  // Fetch recent transactions
-  type TransactionWithRelations = Transaction & {
-    account: Pick<Account, "name" | "color"> | null;
-    category: Pick<Category, "name" | "icon" | "color"> | null;
-  };
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select(`
-      *,
-      account:accounts(name, color),
-      category:categories(name, icon, color)
-    `)
-    .order("date", { ascending: false })
-    .limit(5) as { data: TransactionWithRelations[] | null };
+      // Fetch accounts
+      const { data: accountsData } = await supabase
+        .from("accounts")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: true });
+
+      setAccounts(accountsData);
+
+      // Fetch recent transactions
+      const { data: transactionsData } = await supabase
+        .from("transactions")
+        .select(`
+          *,
+          account:accounts(name, color),
+          category:categories(name, icon, color)
+        `)
+        .order("date", { ascending: false })
+        .limit(5);
+
+      setTransactions(transactionsData as TransactionWithRelations[]);
+
+      // Get current month transactions for income/expense
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+
+      const { data: monthTransactions } = await supabase
+        .from("transactions")
+        .select("type, amount")
+        .gte("date", startOfMonth)
+        .lte("date", endOfMonth);
+
+      const income = monthTransactions
+        ?.filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+
+      const expenses = monthTransactions
+        ?.filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+
+      setMonthlyIncome(income);
+      setMonthlyExpenses(expenses);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
 
   // Calculate totals
   const totalBalance = accounts?.reduce((sum, acc) => {
@@ -43,30 +91,39 @@ export default async function DashboardPage() {
     return sum;
   }, 0) || 0;
 
-  // Get current month transactions for income/expense
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+  const monthlyBalance = monthlyIncome - monthlyExpenses;
+  const budgetProgress = monthlyIncome > 0 ? Math.min((monthlyExpenses / monthlyIncome) * 100, 100) : 0;
 
-  const { data: monthTransactions } = await supabase
-    .from("transactions")
-    .select("type, amount")
-    .gte("date", startOfMonth)
-    .lte("date", endOfMonth) as { data: Pick<Transaction, "type" | "amount">[] | null };
-
-  const monthlyIncome = monthTransactions
-    ?.filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
-
-  const monthlyExpenses = monthTransactions
-    ?.filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 w-48 bg-gray-200 rounded-lg mb-2" />
+          <div className="h-4 w-32 bg-gray-200 rounded-lg" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 bg-gray-200 rounded-3xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Resumen de tus finanzas</p>
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1A1A2E]">Dashboard</h1>
+          <p className="text-[#6B7280]">Resumen de tus finanzas personales</p>
+        </div>
+        <Button asChild>
+          <Link href="/transactions">
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva transacción
+          </Link>
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -74,163 +131,178 @@ export default async function DashboardPage() {
         <StatCard
           title="Balance Total"
           value={formatCurrency(totalBalance)}
-          icon={<Wallet className="h-5 w-5 text-blue-600" />}
-          trend={null}
+          icon={<Wallet className="h-5 w-5 text-primary-500" />}
+          variant="gradient"
         />
         <StatCard
           title="Ingresos del Mes"
           value={formatCurrency(monthlyIncome)}
-          icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
-          trend={null}
-          valueClassName="text-emerald-600"
+          icon={<TrendingUp className="h-5 w-5 text-emerald-500" />}
+          change={12.5}
         />
         <StatCard
           title="Gastos del Mes"
           value={formatCurrency(monthlyExpenses)}
-          icon={<TrendingDown className="h-5 w-5 text-red-600" />}
-          trend={null}
-          valueClassName="text-red-600"
+          icon={<TrendingDown className="h-5 w-5 text-red-500" />}
+          change={-8.3}
         />
         <StatCard
           title="Balance del Mes"
-          value={formatCurrency(monthlyIncome - monthlyExpenses)}
-          icon={<ArrowUpDown className="h-5 w-5 text-purple-600" />}
-          trend={null}
-          valueClassName={monthlyIncome - monthlyExpenses >= 0 ? "text-emerald-600" : "text-red-600"}
+          value={formatCurrency(monthlyBalance)}
+          icon={<ArrowUpDown className="h-5 w-5 text-secondary-500" />}
+          change={monthlyBalance >= 0 ? 5.2 : -5.2}
         />
       </div>
 
+      {/* Main Content Grid */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Chart Area - spans 2 columns */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Resumen Mensual</CardTitle>
+              <Badge variant="info">Diciembre 2024</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 flex items-center justify-center text-[#6B7280]">
+              <div className="text-center">
+                <TrendingUp className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>Gráfico de tendencias próximamente</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Budget Progress Ring */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Presupuesto del Mes</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center py-4">
+            <ProgressRing
+              progress={budgetProgress}
+              size={160}
+              strokeWidth={12}
+              value={`${budgetProgress.toFixed(0)}%`}
+              label="gastado"
+            />
+            <div className="mt-4 text-center">
+              <p className="text-sm text-[#6B7280]">
+                Has gastado{" "}
+                <span className="font-semibold text-[#1A1A2E]">
+                  {formatCurrency(monthlyExpenses)}
+                </span>
+              </p>
+              <p className="text-sm text-[#6B7280]">
+                de{" "}
+                <span className="font-semibold text-[#1A1A2E]">
+                  {formatCurrency(monthlyIncome)}
+                </span>{" "}
+                ingresados
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Lower Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Accounts */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Cuentas</h2>
-            <Link href="/accounts" className="text-sm text-blue-600 hover:underline">
-              Ver todas
-            </Link>
-          </div>
-          {accounts && accounts.length > 0 ? (
-            <div className="space-y-3">
-              {accounts.slice(0, 5).map((account) => (
-                <div
-                  key={account.id}
-                  className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="h-10 w-10 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: account.color + "20" }}
-                    >
-                      <Wallet className="h-5 w-5" style={{ color: account.color }} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{account.name}</p>
-                      <p className="text-xs text-gray-500 capitalize">{account.type}</p>
-                    </div>
-                  </div>
-                  <p className={`font-semibold ${Number(account.balance) >= 0 ? "text-gray-900" : "text-red-600"}`}>
-                    {formatCurrency(Number(account.balance), account.currency)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Wallet className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No tienes cuentas configuradas</p>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Mis Cuentas</CardTitle>
               <Link
                 href="/accounts"
-                className="text-sm text-blue-600 hover:underline mt-2 inline-block"
+                className="text-sm text-primary-500 hover:text-primary-600 font-medium"
               >
-                Agregar cuenta
+                Ver todas
               </Link>
             </div>
-          )}
-        </div>
+          </CardHeader>
+          <CardContent>
+            {accounts && accounts.length > 0 ? (
+              <div className="space-y-3">
+                {accounts.slice(0, 5).map((account) => (
+                  <div
+                    key={account.id}
+                    className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-11 w-11 rounded-xl flex items-center justify-center"
+                        style={{ backgroundColor: account.color + "20" }}
+                      >
+                        <Wallet className="h-5 w-5" style={{ color: account.color }} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-[#1A1A2E]">{account.name}</p>
+                        <p className="text-xs text-[#6B7280] capitalize">{account.type}</p>
+                      </div>
+                    </div>
+                    <p
+                      className={`font-semibold ${
+                        Number(account.balance) >= 0 ? "text-[#1A1A2E]" : "text-red-600"
+                      }`}
+                    >
+                      {formatCurrency(Number(account.balance), account.currency)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Wallet className="h-12 w-12 text-gray-200 mx-auto mb-3" />
+                <p className="text-[#6B7280] mb-3">No tienes cuentas configuradas</p>
+                <Button variant="secondary" size="sm" asChild>
+                  <Link href="/accounts">Agregar cuenta</Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Recent Transactions */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Transacciones Recientes</h2>
-            <Link href="/transactions" className="text-sm text-blue-600 hover:underline">
-              Ver todas
-            </Link>
-          </div>
-          {transactions && transactions.length > 0 ? (
-            <div className="space-y-3">
-              {transactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="h-10 w-10 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: (tx.category?.color || "#6B7280") + "20" }}
-                    >
-                      <span style={{ color: tx.category?.color || "#6B7280" }}>
-                        {tx.type === "income" ? "+" : "-"}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {tx.description || tx.category?.name || "Sin categoría"}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(tx.date).toLocaleDateString("es-CO", {
-                          day: "numeric",
-                          month: "short",
-                        })}
-                        {" • "}
-                        {tx.account?.name}
-                      </p>
-                    </div>
-                  </div>
-                  <p className={`font-semibold ${tx.type === "income" ? "text-emerald-600" : "text-red-600"}`}>
-                    {tx.type === "income" ? "+" : "-"}{formatCurrency(Number(tx.amount))}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <ArrowUpDown className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No tienes transacciones aún</p>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Transacciones Recientes</CardTitle>
               <Link
                 href="/transactions"
-                className="text-sm text-blue-600 hover:underline mt-2 inline-block"
+                className="text-sm text-primary-500 hover:text-primary-600 font-medium"
               >
-                Agregar transacción
+                Ver todas
               </Link>
             </div>
-          )}
-        </div>
+          </CardHeader>
+          <CardContent>
+            {transactions && transactions.length > 0 ? (
+              <div className="space-y-1">
+                {transactions.map((tx) => (
+                  <TransactionRow
+                    key={tx.id}
+                    icon={tx.category?.icon || (tx.type === "income" ? "💰" : "💸")}
+                    name={tx.description || tx.category?.name || "Sin descripción"}
+                    category={tx.account?.name || "Sin cuenta"}
+                    amount={tx.type === "income" ? Number(tx.amount) : -Number(tx.amount)}
+                    date={tx.date}
+                    currency="COP"
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <ArrowUpDown className="h-12 w-12 text-gray-200 mx-auto mb-3" />
+                <p className="text-[#6B7280] mb-3">No tienes transacciones aún</p>
+                <Button variant="secondary" size="sm" asChild>
+                  <Link href="/transactions">Agregar transacción</Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </div>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  icon,
-  trend,
-  valueClassName = "",
-}: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  trend: string | null;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        {icon}
-      </div>
-      <p className={`text-2xl font-bold mt-2 ${valueClassName}`}>{value}</p>
-      {trend && <p className="text-xs text-gray-500 mt-1">{trend}</p>}
     </div>
   );
 }
