@@ -1,0 +1,23 @@
+# Default owners for everything
+* @cesarcasstella
+
+# Frontend
+/app/ @cesarcasstella
+/components/ @cesarcasstella
+
+# Backend/Database
+/lib/db/ @cesarcasstella
+/database/ @cesarcasstella
+
+# WhatsApp Integration
+/lib/whatsapp/ @cesarcasstella
+/app/api/webhooks/ @cesarcasstella
+
+# DevOps
+/.github/ @cesarcasstella
+/scripts/ @cesarcasstella
+Dockerfile @cesarcasstella
+
+# Documentation
+/docs/ @cesarcasstella
+*.md @cesarcasstella
