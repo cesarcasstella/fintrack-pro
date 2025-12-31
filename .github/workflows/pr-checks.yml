@@ -9,7 +9,7 @@ jobs:
     name: Validate PR
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check PR Title
         uses: amannn/action-semantic-pull-request@v5
@@ -31,7 +31,7 @@ jobs:
     name: Deploy Preview
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Deploy Preview to Vercel
         uses: amondnet/vercel-action@v25
