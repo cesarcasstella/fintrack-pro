@@ -4,6 +4,7 @@ import { Wallet, TrendingUp, TrendingDown, ArrowUpDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
 import Link from "next/link";
 import { Account, Transaction, Category } from "@/types/database";
+import { QuickWithdrawal } from "@/components/transactions/quick-withdrawal";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -205,6 +206,11 @@ export default async function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Quick Withdrawal */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <QuickWithdrawal accounts={accounts || []} />
       </div>
     </div>
   );

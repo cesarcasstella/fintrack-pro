@@ -87,7 +87,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createTransactionSchema.parse(body);
 
-    const { data, error } = await supabase
+    // 1. Insert the transaction
+    const { data: transaction, error: txError } = await supabase
       .from("transactions")
       .insert({
         user_id: user.id,
@@ -97,16 +98,62 @@ export async function POST(request: NextRequest) {
       })
       .select(`
         *,
-        account:accounts(id, name, color),
+        account:accounts(id, name, color, balance),
         category:categories(id, name, icon, color)
       `)
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (txError) {
+      return NextResponse.json({ error: txError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data }, { status: 201 });
+    // 2. Update account balance
+    const currentBalance = Number(transaction.account?.balance || 0);
+    const amount = Number(validated.amount);
+
+    let newBalance: number;
+    if (validated.type === "income") {
+      newBalance = currentBalance + amount;
+    } else if (validated.type === "expense") {
+      newBalance = currentBalance - amount;
+    } else if (validated.type === "transfer" && validated.transfer_to_account_id) {
+      // For transfers: deduct from source account
+      newBalance = currentBalance - amount;
+
+      // Add to destination account
+      const { data: destAccount } = await supabase
+        .from("accounts")
+        .select("balance")
+        .eq("id", validated.transfer_to_account_id)
+        .single();
+
+      if (destAccount) {
+        await supabase
+          .from("accounts")
+          .update({
+            balance: Number(destAccount.balance) + amount,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", validated.transfer_to_account_id);
+      }
+    } else {
+      newBalance = currentBalance;
+    }
+
+    // Update source account balance
+    const { error: updateError } = await supabase
+      .from("accounts")
+      .update({
+        balance: newBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", validated.account_id);
+
+    if (updateError) {
+      console.error("Failed to update account balance:", updateError);
+    }
+
+    return NextResponse.json({ data: transaction }, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.errors }, { status: 400 });

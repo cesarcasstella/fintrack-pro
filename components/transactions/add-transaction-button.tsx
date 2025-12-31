@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Account, Category } from "@/types/database";
 import { Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -16,10 +15,11 @@ export function AddTransactionButton({ accounts, categories }: AddTransactionBut
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [type, setType] = useState<"expense" | "income">("expense");
+  const [type, setType] = useState<"expense" | "income" | "transfer">("expense");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [accountId, setAccountId] = useState(accounts[0]?.id || "");
+  const [transferToAccountId, setTransferToAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
@@ -32,53 +32,48 @@ export function AddTransactionButton({ accounts, categories }: AddTransactionBut
       return;
     }
 
+    if (type === "transfer" && !transferToAccountId) {
+      toast.error("Selecciona la cuenta destino para la transferencia");
+      return;
+    }
+
+    if (type === "transfer" && accountId === transferToAccountId) {
+      toast.error("La cuenta origen y destino no pueden ser iguales");
+      return;
+    }
+
     setLoading(true);
 
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    try {
+      const response = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: accountId,
+          category_id: categoryId || null,
+          type,
+          amount: parseFloat(amount),
+          description: description || null,
+          date: new Date(date).toISOString(),
+          source: "manual",
+          transfer_to_account_id: type === "transfer" ? transferToAccountId : null,
+        }),
+      });
 
-    if (!user) {
-      toast.error("No estás autenticado");
-      setLoading(false);
-      return;
-    }
+      if (!response.ok) {
+        throw new Error("Error al crear la transacción");
+      }
 
-    const { error } = await supabase.from("transactions").insert({
-      user_id: user.id,
-      account_id: accountId,
-      category_id: categoryId || null,
-      type,
-      amount: parseFloat(amount),
-      description: description || null,
-      date: new Date(date).toISOString(),
-      source: "manual",
-    });
-
-    if (error) {
+      toast.success("Transacción creada");
+      setIsOpen(false);
+      resetForm();
+      router.refresh();
+    } catch (error) {
       toast.error("Error al crear la transacción");
       console.error(error);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Update account balance (RPC might not exist yet, that's okay)
-    const account = accounts.find((a) => a.id === accountId);
-    if (account) {
-      const balanceChange = type === "income" ? parseFloat(amount) : -parseFloat(amount);
-      try {
-        await supabase.rpc("update_account_balance", {
-          p_account_id: accountId,
-          p_amount: balanceChange,
-        });
-      } catch {
-        // RPC might not exist yet
-      }
-    }
-
-    toast.success("Transacción creada");
-    setIsOpen(false);
-    resetForm();
-    router.refresh();
   };
 
   const resetForm = () => {
@@ -86,6 +81,7 @@ export function AddTransactionButton({ accounts, categories }: AddTransactionBut
     setAmount("");
     setDescription("");
     setAccountId(accounts[0]?.id || "");
+    setTransferToAccountId("");
     setCategoryId("");
     setDate(new Date().toISOString().split("T")[0]);
     setLoading(false);
@@ -143,6 +139,17 @@ export function AddTransactionButton({ accounts, categories }: AddTransactionBut
                 >
                   Ingreso
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setType("transfer")}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                    type === "transfer"
+                      ? "bg-blue-100 text-blue-700"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  Transferencia
+                </button>
               </div>
 
               {/* Amount */}
@@ -168,7 +175,7 @@ export function AddTransactionButton({ accounts, categories }: AddTransactionBut
               {/* Account */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cuenta *
+                  {type === "transfer" ? "Cuenta Origen *" : "Cuenta *"}
                 </label>
                 <select
                   value={accountId}
@@ -184,24 +191,50 @@ export function AddTransactionButton({ accounts, categories }: AddTransactionBut
                 </select>
               </div>
 
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Categoría
-                </label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                >
-                  <option value="">Sin categoría</option>
-                  {filteredCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Destination Account (for transfers) */}
+              {type === "transfer" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cuenta Destino *
+                  </label>
+                  <select
+                    value={transferToAccountId}
+                    onChange={(e) => setTransferToAccountId(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    required
+                  >
+                    <option value="">Selecciona cuenta</option>
+                    {accounts
+                      .filter((acc) => acc.id !== accountId)
+                      .map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Category (hidden for transfers) */}
+              {type !== "transfer" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Categoría
+                  </label>
+                  <select
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  >
+                    <option value="">Sin categoría</option>
+                    {filteredCategories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Description */}
               <div>

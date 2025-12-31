@@ -11,6 +11,7 @@ import {
   Calculator,
   Settings,
   MessageSquare,
+  Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -18,6 +19,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Transacciones", href: "/transactions", icon: ArrowUpDown },
   { name: "Cuentas", href: "/accounts", icon: Wallet },
+  { name: "Efectivo", href: "/cash", icon: Banknote },
   { name: "Categorías", href: "/categories", icon: Tags },
   { name: "Proyecciones", href: "/projections", icon: TrendingUp },
   { name: "Simulador", href: "/simulator", icon: Calculator },
