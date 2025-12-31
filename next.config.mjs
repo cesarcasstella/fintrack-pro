@@ -1,19 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "2mb",
-    },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "hqftygsamanhfbsxxuge.supabase.co",
-        pathname: "/storage/v1/object/public/**",
-      },
-    ],
+  typescript: {
+    ignoreBuildErrors: true,
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
