@@ -16,8 +16,8 @@ export default async function TransactionsPage() {
     .from("transactions")
     .select(`
       *,
-      account:accounts(id, name, color),
-      category:categories(id, name, icon, color)
+      account:accounts!left(id, name, color),
+      category:categories!left(id, name, icon, color)
     `)
     .order("date", { ascending: false })
     .limit(50);

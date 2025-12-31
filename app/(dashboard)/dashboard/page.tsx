@@ -30,8 +30,8 @@ export default async function DashboardPage() {
     .from("transactions")
     .select(`
       *,
-      account:accounts(name, color),
-      category:categories(name, icon, color)
+      account:accounts!left(name, color),
+      category:categories!left(name, icon, color)
     `)
     .order("date", { ascending: false })
     .limit(5) as { data: TransactionWithRelations[] | null };

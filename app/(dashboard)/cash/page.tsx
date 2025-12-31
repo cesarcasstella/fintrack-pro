@@ -31,8 +31,8 @@ export default async function CashPage() {
       .from("transactions")
       .select(`
         *,
-        account:accounts(name, type),
-        category:categories(name, icon)
+        account:accounts!left(name, type),
+        category:categories!left(name, icon)
       `)
       .or(`account_id.in.(${cashAccountIds.join(',')}),transfer_to_account_id.in.(${cashAccountIds.join(',')})`)
       .order("date", { ascending: false })

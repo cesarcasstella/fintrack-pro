@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
     .from("transactions")
     .select(`
       *,
-      account:accounts(id, name, color),
-      category:categories(id, name, icon, color)
+      account:accounts!left(id, name, color),
+      category:categories!left(id, name, icon, color)
     `, { count: "exact" })
     .order("date", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
       })
       .select(`
         *,
-        account:accounts(id, name, color, balance),
-        category:categories(id, name, icon, color)
+        account:accounts!left(id, name, color, balance),
+        category:categories!left(id, name, icon, color)
       `)
       .single();
 
