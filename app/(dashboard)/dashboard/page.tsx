@@ -1,269 +1,183 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import { Wallet, TrendingUp, TrendingDown, ArrowUpDown, Plus, ArrowRight, MessageCircle } from "lucide-react";
-import { formatCurrency } from "@/lib/utils/format";
-import Link from "next/link";
-import { Account, Transaction, Category } from "@/types/database";
+"use client";
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+import React from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  Wallet, 
+  TrendingUp, 
+  ArrowRight, 
+  MessageCircle, 
+  Plus, 
+  Search, 
+  Bell,
+  MoreHorizontal,
+  ArrowUpRight,
+  ArrowDownLeft
+} from 'lucide-react';
+import { theme, Card, Button, Badge } from '@/components/ui/design-system';
 
-  if (!user) {
-    redirect("/auth/login");
-  }
+export default function DashboardPage() {
+  const router = useRouter();
 
-  // Fetch accounts
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("*")
-    .eq("is_active", true)
-    .order("created_at", { ascending: true }) as { data: Account[] | null };
-
-  // Fetch recent transactions
-  type TransactionWithRelations = Transaction & {
-    account: Pick<Account, "name" | "color"> | null;
-    category: Pick<Category, "name" | "icon" | "color"> | null;
-  };
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select(`
-      *,
-      account:accounts(name, color),
-      category:categories(name, icon, color)
-    `)
-    .order("date", { ascending: false })
-    .limit(5) as { data: TransactionWithRelations[] | null };
-
-  // Calculate totals
-  const totalBalance = accounts?.reduce((sum, acc) => {
-    if (acc.include_in_total) {
-      return sum + (acc.type === "credit" ? -Number(acc.balance) : Number(acc.balance));
-    }
-    return sum;
-  }, 0) || 0;
-
-  // Get current month transactions for income/expense
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
-
-  const { data: monthTransactions } = await supabase
-    .from("transactions")
-    .select("type, amount")
-    .gte("date", startOfMonth)
-    .lte("date", endOfMonth) as { data: Pick<Transaction, "type" | "amount">[] | null };
-
-  const monthlyIncome = monthTransactions
-    ?.filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
-
-  const monthlyExpenses = monthTransactions
-    ?.filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
-
-  const accountIcons: Record<string, string> = {
-    checking: "🏦",
-    savings: "🐷",
-    credit: "💳",
-    cash: "💵",
-    investment: "📈",
-    bank: "🏦",
-    digital_wallet: "📱",
-  };
+  const accounts = [
+    { name: 'Nequi', balance: '$450.000', type: 'Digital' },
+    { name: 'Bancolombia', balance: '$2.500.000', type: 'Ahorros' },
+    { name: 'Efectivo', balance: '$120.000', type: 'Físico' },
+  ];
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* Balance Card */}
-      <div className="balance-card">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <p className="text-white/70 text-sm font-medium">Patrimonio Total</p>
-            <p className="text-4xl font-bold mt-1">{formatCurrency(totalBalance)}</p>
-            <p className="text-white/60 text-sm mt-1">COP</p>
-          </div>
-          <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
-            <Wallet className="h-6 w-6 text-white" />
-          </div>
-        </div>
-        
-        <div className="flex gap-3 mt-6">
-          <Link
-            href="/transactions?action=new&type=expense"
-            className="flex-1 bg-white/20 backdrop-blur hover:bg-white/30 rounded-xl py-3 text-center font-medium transition-colors"
-          >
-            Agregar Gasto
-          </Link>
-          <Link
-            href="/transactions?action=new&type=income"
-            className="flex-1 bg-white/20 backdrop-blur hover:bg-white/30 rounded-xl py-3 text-center font-medium transition-colors"
-          >
-            Agregar Ingreso
-          </Link>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-50 pb-24 -m-4 md:-m-6">
+      {/* Header con Gradiente */}
+      <div 
+        className="px-5 pt-14 pb-12 rounded-b-[2.5rem] relative overflow-hidden"
+        style={{ background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.primaryDark} 100%)` }}
+      >
+        {/* Círculos decorativos de fondo */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/3 -translate-x-1/4 pointer-events-none" />
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-success/10 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="h-4 w-4 text-success" />
-            <span className="text-success text-sm font-medium">Ingresos</span>
+        {/* Top Bar */}
+        <div className="flex items-center justify-between mb-8 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/10">
+              <span className="text-white font-bold">CC</span>
+            </div>
+            <div>
+              <p className="text-emerald-100 text-xs font-medium">Buenos días,</p>
+              <h1 className="text-white font-bold text-lg leading-tight">César</h1>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-success">{formatCurrency(monthlyIncome)}</p>
-          <p className="text-xs text-gray-500 mt-1">Este mes</p>
-        </div>
-        <div className="bg-danger/10 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="h-4 w-4 text-danger" />
-            <span className="text-danger text-sm font-medium">Gastos</span>
+          <div className="flex gap-3">
+            <button className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/20 transition-colors">
+              <Search className="w-5 h-5 text-white" />
+            </button>
+            <button className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/20 transition-colors relative">
+              <Bell className="w-5 h-5 text-white" />
+              <span className="absolute top-2.5 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0D6B4B]"></span>
+            </button>
           </div>
-          <p className="text-2xl font-bold text-danger">{formatCurrency(monthlyExpenses)}</p>
-          <p className="text-xs text-gray-500 mt-1">Este mes</p>
         </div>
-      </div>
 
-      {/* Accounts Horizontal Scroll */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Mis Cuentas</h2>
-          <Link href="/accounts" className="text-sm text-primary font-medium flex items-center gap-1">
-            Ver todas <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-        
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {accounts && accounts.length > 0 ? (
-            <>
-              {accounts.map((account) => (
-                <div
-                  key={account.id}
-                  className="account-card"
-                >
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-3"
-                    style={{ backgroundColor: `${account.color}20` }}
-                  >
-                    {accountIcons[account.type] || "💳"}
-                  </div>
-                  <p className="font-medium text-gray-900 truncate">{account.name}</p>
-                  <p className="text-xs text-gray-500 mb-2">{account.currency}</p>
-                  <p className={`font-bold ${Number(account.balance) >= 0 ? "text-gray-900" : "text-danger"}`}>
-                    {formatCurrency(Number(account.balance), account.currency)}
-                  </p>
-                </div>
-              ))}
-              <Link
-                href="/accounts/new"
-                className="flex-shrink-0 w-40 rounded-2xl p-4 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-primary hover:text-primary transition-colors"
-              >
-                <Plus className="h-8 w-8 mb-2" />
-                <span className="text-sm font-medium">Agregar</span>
-              </Link>
-            </>
-          ) : (
-            <Link
-              href="/accounts/new"
-              className="flex-1 rounded-2xl p-6 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-primary hover:text-primary transition-colors"
+        {/* Balance Principal */}
+        <div className="relative z-10">
+          <p className="text-emerald-100/80 text-sm mb-1 font-medium">Balance Total</p>
+          <div className="flex items-baseline gap-1">
+            <h2 className="text-4xl font-bold text-white tracking-tight">$3.070.000</h2>
+            <span className="text-emerald-200 font-medium">COP</span>
+          </div>
+          
+          <div className="flex gap-3 mt-6">
+            <button 
+              onClick={() => router.push('/transactions')}
+              className="flex-1 bg-white text-emerald-900 py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-emerald-50 transition-colors shadow-lg shadow-emerald-900/20"
             >
-              <Plus className="h-10 w-10 mb-2" />
-              <span className="font-medium">Agregar primera cuenta</span>
-            </Link>
-          )}
+              <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                <ArrowUpRight className="w-3 h-3" />
+              </div>
+              Ingreso
+            </button>
+            <button 
+              onClick={() => router.push('/transactions')}
+              className="flex-1 bg-emerald-800/50 backdrop-blur-md text-white py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border border-white/10 hover:bg-emerald-800/70 transition-colors"
+            >
+              <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+                <ArrowDownLeft className="w-3 h-3" />
+              </div>
+              Gasto
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Recent Transactions */}
-      <div className="card-billza p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recientes</h2>
-          <Link href="/transactions" className="text-sm text-primary font-medium flex items-center gap-1">
-            Ver todas <ArrowRight className="h-4 w-4" />
-          </Link>
+      {/* Contenido Principal */}
+      <div className="px-5 -mt-6 relative z-20 space-y-6">
+        
+        {/* Accesos Rápidos (Features Nuevos) */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card 
+            hoverable 
+            padding="p-4" 
+            onClick={() => router.push('/projections')}
+            className="flex flex-col items-start gap-3"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">Proyecciones</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Ver a 12 meses</p>
+            </div>
+          </Card>
+
+          <Card 
+            hoverable 
+            padding="p-4" 
+            onClick={() => router.push('/clarification')}
+            className="flex flex-col items-start gap-3 relative overflow-hidden"
+          >
+            <div className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+              <MessageCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">Clarificar</h3>
+              <p className="text-xs text-gray-500 mt-0.5">3 pendientes</p>
+            </div>
+          </Card>
         </div>
 
-        {transactions && transactions.length > 0 ? (
-          <div className="space-y-1">
-            {transactions.map((tx) => (
-              <div key={tx.id} className="transaction-item">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center text-lg"
-                    style={{ 
-                      backgroundColor: tx.type === "income" ? "#D1FAE5" : "#FEE2E2"
-                    }}
-                  >
-                    {tx.category?.icon || (tx.type === "income" ? "💰" : "💸")}
+        {/* Sección de Cuentas */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-900">Mis Cuentas</h3>
+            <button className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+              <MoreHorizontal className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            {accounts.map((acc, i) => (
+              <Card key={i} padding="p-4" hoverable className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                    i === 0 ? 'bg-purple-100 text-purple-600' :
+                    i === 1 ? 'bg-yellow-100 text-yellow-600' : 'bg-emerald-100 text-emerald-600'
+                  }`}>
+                    <Wallet className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">
-                      {tx.description || tx.category?.name || "Sin categoría"}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(tx.date).toLocaleDateString("es-CO", {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                      {" • "}
-                      {tx.account?.name}
-                    </p>
+                    <h4 className="font-bold text-gray-900">{acc.name}</h4>
+                    <p className="text-xs text-gray-500 font-medium">{acc.type}</p>
                   </div>
                 </div>
-                <p className={`font-semibold ${tx.type === "income" ? "text-success" : "text-danger"}`}>
-                  {tx.type === "income" ? "+" : "-"}{formatCurrency(Number(tx.amount))}
-                </p>
-              </div>
+                <div className="text-right">
+                  <p className="font-bold text-gray-900">{acc.balance}</p>
+                </div>
+              </Card>
             ))}
           </div>
-        ) : (
-          <div className="text-center py-8">
-            <ArrowUpDown className="h-12 w-12 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 mb-3">No tienes transacciones aún</p>
-            <Link
-              href="/transactions?action=new"
-              className="inline-flex items-center gap-2 text-primary font-medium hover:underline"
-            >
-              <Plus className="h-4 w-4" />
-              Agregar primera transacción
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {/* WhatsApp CTA */}
-      <Link href="/settings/whatsapp" className="block whatsapp-cta">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-            <MessageCircle className="h-6 w-6 text-white" />
-          </div>
-          <div className="flex-1">
-            <p className="font-semibold text-white">Registra por WhatsApp</p>
-            <p className="text-white/80 text-sm">Envía "Almuerzo 25000" y listo</p>
-          </div>
-          <ArrowRight className="h-5 w-5 text-white/80" />
         </div>
-      </Link>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-4">
-        <Link href="/projections" className="card-billza p-4 flex items-center gap-3 hover:shadow-md">
-          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-            <TrendingUp className="h-5 w-5 text-primary" />
+        {/* WhatsApp Banner */}
+        <div 
+          onClick={() => router.push('/settings/whatsapp')}
+          className="bg-[#25D366] rounded-3xl p-5 text-white relative overflow-hidden cursor-pointer hover:shadow-lg hover:shadow-green-500/20 transition-all active:scale-[0.98]"
+        >
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/20 rounded-full" />
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
+              <MessageCircle className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-bold text-lg">Modo WhatsApp</h4>
+              <p className="text-white/90 text-sm leading-relaxed">
+                Envía "Almuerzo 20k" para registrar gastos al instante.
+              </p>
+            </div>
+            <ArrowRight className="w-5 h-5 text-white/80" />
           </div>
-          <div>
-            <p className="font-medium text-gray-900">Proyecciones</p>
-            <p className="text-xs text-gray-500">Ver a 12 meses</p>
-          </div>
-        </Link>
-        <Link href="/simulator" className="card-billza p-4 flex items-center gap-3 hover:shadow-md">
-          <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center">
-            <ArrowUpDown className="h-5 w-5 text-accent" />
-          </div>
-          <div>
-            <p className="font-medium text-gray-900">Simulador</p>
-            <p className="text-xs text-gray-500">¿Qué pasaría si...?</p>
-          </div>
-        </Link>
+        </div>
+
       </div>
     </div>
   );
