@@ -1,100 +1,108 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Profile } from "@/types/database";
-import { Menu, X, LogOut, Settings, User as UserIcon } from "lucide-react";
+import { Bell, Search, Plus } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 
 interface HeaderProps {
   user: User;
-  profile: Profile | null;
+  profile: {
+    full_name?: string;
+    avatar_url?: string;
+  } | null;
 }
 
 export function Header({ user, profile }: HeaderProps) {
-  const router = useRouter();
-  const [showMenu, setShowMenu] = useState(false);
-  const [showMobileNav, setShowMobileNav] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  
+  const displayName = profile?.full_name || user.email?.split("@")[0] || "Usuario";
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Buenos días";
+    if (hour < 18) return "Buenas tardes";
+    return "Buenas noches";
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
-      <div className="flex items-center justify-between px-6 py-4">
-        {/* Mobile menu button */}
-        <button
-          onClick={() => setShowMobileNav(!showMobileNav)}
-          className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100"
-        >
-          {showMobileNav ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-100">
+      <div className="flex items-center justify-between h-16 px-6">
+        {/* Left: Greeting */}
+        <div className="lg:ml-0 ml-12">
+          <p className="text-sm text-gray-500">{getGreeting()}</p>
+          <h1 className="font-semibold text-gray-900">{displayName}</h1>
+        </div>
 
-        {/* Page title area - can be enhanced later */}
-        <div className="flex-1 lg:ml-0" />
+        {/* Center: Search (Desktop) */}
+        <div className="hidden md:flex flex-1 max-w-md mx-8">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar transacciones..."
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+            />
+          </div>
+        </div>
 
-        {/* User menu */}
-        <div className="relative">
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          {/* Mobile Search Toggle */}
           <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="flex items-center gap-3 p-2 -mr-2 rounded-lg hover:bg-gray-100"
+            onClick={() => setShowSearch(!showSearch)}
+            className="md:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
           >
-            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-blue-700 font-medium text-sm">
-                {profile?.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase()}
-              </span>
-            </div>
-            <span className="hidden md:block text-sm font-medium text-gray-700">
-              {profile?.full_name || user.email}
-            </span>
+            <Search className="h-5 w-5" />
           </button>
 
-          {showMenu && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowMenu(false)}
-              />
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-                <div className="px-4 py-3 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">
-                    {profile?.full_name || "Usuario"}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                </div>
-                <a
-                  href="/settings"
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <Settings className="h-4 w-4" />
-                  Configuración
-                </a>
-                <a
-                  href="/settings"
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <UserIcon className="h-4 w-4" />
-                  Mi perfil
-                </a>
-                <div className="border-t border-gray-200 mt-1 pt-1">
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Cerrar sesión
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
+          {/* Quick Add */}
+          <Link
+            href="/transactions?action=new"
+            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-medium hover:bg-primary-dark transition-all active:scale-[0.98] shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="text-sm">Agregar</span>
+          </Link>
+
+          {/* Notifications */}
+          <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
+          </button>
+
+          {/* Profile */}
+          <Link
+            href="/settings/profile"
+            className="flex items-center gap-3 p-1 pr-3 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary-light rounded-xl flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+              {initials}
+            </div>
+          </Link>
         </div>
       </div>
+
+      {/* Mobile Search Bar */}
+      {showSearch && (
+        <div className="md:hidden px-4 pb-3 animate-slide-up">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar transacciones..."
+              autoFocus
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+            />
+          </div>
+        </div>
+      )}
     </header>
   );
 }
