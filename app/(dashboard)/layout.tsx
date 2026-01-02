@@ -15,19 +15,35 @@ export default async function DashboardLayout({
     redirect("/auth/login");
   }
 
-  // Fetch profile
-  const { data: profile } = await supabase
+  // Try to fetch profile (handle both table names for compatibility)
+  let profile = null;
+  
+  // First try 'profiles' table
+  const { data: profileData } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .single();
+  
+  if (profileData) {
+    profile = profileData;
+  } else {
+    // Fallback to 'user_profiles' table
+    const { data: userProfileData } = await supabase
+      .from("user_profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+    profile = userProfileData;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="lg:pl-64">
+      {/* Main content area - adjust padding for sidebar */}
+      <div className="lg:pl-64 transition-all duration-300">
         <Header user={user} profile={profile} />
-        <main className="p-6">
+        <main className="p-4 md:p-6 max-w-7xl mx-auto">
           {children}
         </main>
       </div>
