@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Check } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { theme } from "@/components/ui/design-system";
 
 const accountTypes = [
   { value: "checking", label: "Cuenta Corriente", icon: "🏦" },
@@ -12,11 +13,12 @@ const accountTypes = [
   { value: "credit", label: "Tarjeta de Crédito", icon: "💳" },
   { value: "cash", label: "Efectivo", icon: "💵" },
   { value: "investment", label: "Inversiones", icon: "📈" },
+  { value: "digital_wallet", label: "Billetera Digital", icon: "📱" },
 ];
 
 const colors = [
-  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6",
-  "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1",
+  "#0D6B4B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899",
+  "#F59E0B", "#EF4444", "#06B6D4", "#84CC16", "#6366F1",
 ];
 
 export default function NewAccountPage() {
@@ -69,39 +71,44 @@ export default function NewAccountPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <Link
-          href="/accounts"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver a cuentas
-        </Link>
+    <div className="min-h-screen bg-gray-50 -m-4 md:-m-6">
+      {/* Header */}
+      <div className="bg-white px-5 pt-14 pb-4 border-b border-gray-100">
+        <div className="flex items-center gap-4">
+          <Link
+            href="/accounts"
+            className="p-2 -ml-2 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold text-gray-900">Nueva Cuenta</h1>
+            <p className="text-sm text-gray-500">Agrega una cuenta financiera</p>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Nueva Cuenta</h1>
-
+      {/* Form */}
+      <div className="p-5">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Account Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
               Nombre de la cuenta *
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
               placeholder="Ej: Bancolombia Ahorros"
               required
             />
           </div>
 
           {/* Account Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
               Tipo de cuenta
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -110,41 +117,43 @@ export default function NewAccountPage() {
                   key={accType.value}
                   type="button"
                   onClick={() => setType(accType.value)}
-                  className={`p-3 rounded-lg border text-left transition-colors ${
+                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
                     type === accType.value
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-200 hover:bg-gray-50"
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-100 hover:bg-gray-50 hover:border-gray-200"
                   }`}
                 >
-                  <span className="text-xl">{accType.icon}</span>
-                  <p className="text-sm font-medium mt-1">{accType.label}</p>
+                  <span className="text-2xl block mb-2">{accType.icon}</span>
+                  <p className={`text-sm font-medium ${type === accType.value ? 'text-emerald-700' : 'text-gray-700'}`}>
+                    {accType.label}
+                  </p>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Initial Balance */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
               Saldo inicial
             </label>
             <div className="flex gap-3">
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">
                   $
                 </span>
                 <input
                   type="number"
                   value={balance}
                   onChange={(e) => setBalance(e.target.value)}
-                  className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                   placeholder="0"
                 />
               </div>
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
               >
                 <option value="COP">COP</option>
                 <option value="USD">USD</option>
@@ -157,44 +166,58 @@ export default function NewAccountPage() {
           </div>
 
           {/* Color */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Color
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Color de identificación
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-3">
               {colors.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  className={`h-8 w-8 rounded-full transition-transform ${
-                    color === c ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : ""
+                  className={`h-10 w-10 rounded-xl transition-all ${
+                    color === c ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : "hover:scale-105"
                   }`}
                   style={{ backgroundColor: c }}
-                />
+                >
+                  {color === c && (
+                    <Check className="w-5 h-5 text-white mx-auto" />
+                  )}
+                </button>
               ))}
             </div>
           </div>
 
           {/* Include in total */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="includeInTotal"
-              checked={includeInTotal}
-              onChange={(e) => setIncludeInTotal(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <label htmlFor="includeInTotal" className="text-sm text-gray-700">
-              Incluir en el balance total
-            </label>
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">Incluir en balance total</p>
+                <p className="text-sm text-gray-500">Suma esta cuenta al balance general</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIncludeInTotal(!includeInTotal)}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                  includeInTotal ? "bg-emerald-500" : "bg-gray-200"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+                    includeInTotal ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* Submit */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-2xl font-semibold text-white transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] hover:shadow-lg hover:shadow-emerald-500/25"
+            style={{ background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.primaryDark} 100%)` }}
           >
             {loading ? (
               <>

@@ -1,16 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { formatCurrency } from "@/lib/utils/format";
-import { Wallet, Plus, CreditCard, PiggyBank, Banknote, TrendingUp } from "lucide-react";
+import { Plus, ChevronRight, TrendingUp, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { Account } from "@/types/database";
+import { theme } from "@/components/ui/design-system";
 
-const accountIcons: Record<string, React.ReactNode> = {
-  checking: <Wallet className="h-5 w-5" />,
-  savings: <PiggyBank className="h-5 w-5" />,
-  credit: <CreditCard className="h-5 w-5" />,
-  cash: <Banknote className="h-5 w-5" />,
-  investment: <TrendingUp className="h-5 w-5" />,
+const accountEmojis: Record<string, string> = {
+  checking: "🏦",
+  savings: "🐷",
+  credit: "💳",
+  cash: "💵",
+  investment: "📈",
+  digital_wallet: "📱",
 };
 
 const accountLabels: Record<string, string> = {
@@ -19,6 +21,7 @@ const accountLabels: Record<string, string> = {
   credit: "Tarjeta de Crédito",
   cash: "Efectivo",
   investment: "Inversiones",
+  digital_wallet: "Billetera Digital",
 };
 
 export default async function AccountsPage() {
@@ -41,86 +44,121 @@ export default async function AccountsPage() {
     return sum;
   }, 0) || 0;
 
+  const activeAccounts = accounts?.filter((a) => a.is_active) || [];
+  const positiveBalance = totalBalance >= 0;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cuentas</h1>
-          <p className="text-gray-600">Administra tus cuentas financieras</p>
-        </div>
-        <Link
-          href="/accounts/new"
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-5 w-5" />
-          Nueva Cuenta
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gray-50 -m-4 md:-m-6">
+      {/* Gradient Header */}
+      <div
+        className="px-5 pt-14 pb-8 rounded-b-[2rem] relative overflow-hidden"
+        style={{ background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.primaryDark} 100%)` }}
+      >
+        {/* Decorative circles */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/3 -translate-x-1/4 pointer-events-none" />
 
-      {/* Total Balance Card */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
-        <p className="text-blue-100 text-sm font-medium">Balance Total</p>
-        <p className="text-3xl font-bold mt-1">{formatCurrency(totalBalance)}</p>
-        <p className="text-blue-100 text-sm mt-2">
-          {accounts?.filter((a) => a.is_active).length || 0} cuentas activas
-        </p>
-      </div>
-
-      {/* Accounts Grid */}
-      {accounts && accounts.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {accounts.map((account) => (
-            <div
-              key={account.id}
-              className={`bg-white rounded-xl border border-gray-200 p-6 ${
-                !account.is_active ? "opacity-60" : ""
-              }`}
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Mis Cuentas</h1>
+              <p className="text-white/70 text-sm">Administra tus cuentas financieras</p>
+            </div>
+            <Link
+              href="/accounts/new"
+              className="flex items-center gap-2 bg-white/20 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl font-medium hover:bg-white/30 transition-all border border-white/10"
             >
-              <div className="flex items-start justify-between">
-                <div
-                  className="h-12 w-12 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: account.color + "20" }}
-                >
-                  <span style={{ color: account.color }}>
-                    {accountIcons[account.type]}
-                  </span>
-                </div>
-                {!account.is_active && (
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                    Inactiva
-                  </span>
+              <Plus className="h-5 w-5" />
+              Nueva
+            </Link>
+          </div>
+
+          {/* Balance Card */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10">
+            <p className="text-white/70 text-sm font-medium">Balance Total</p>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-3xl font-bold text-white">{formatCurrency(totalBalance)}</p>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${positiveBalance ? 'bg-emerald-400/20' : 'bg-red-400/20'}`}>
+                {positiveBalance ? (
+                  <TrendingUp className="w-4 h-4 text-emerald-300" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-red-300" />
                 )}
               </div>
-              <h3 className="font-semibold text-gray-900 mt-4">{account.name}</h3>
-              <p className="text-sm text-gray-500">{accountLabels[account.type]}</p>
-              <p
-                className={`text-2xl font-bold mt-3 ${
-                  Number(account.balance) >= 0 ? "text-gray-900" : "text-red-600"
+            </div>
+            <p className="text-white/60 text-sm mt-2">
+              {activeAccounts.length} cuenta{activeAccounts.length !== 1 ? 's' : ''} activa{activeAccounts.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-5 py-6 space-y-4">
+        {accounts && accounts.length > 0 ? (
+          <>
+            {accounts.map((account) => (
+              <Link
+                key={account.id}
+                href={`/accounts/${account.id}`}
+                className={`block bg-white rounded-3xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ${
+                  !account.is_active ? "opacity-60" : ""
                 }`}
               >
-                {formatCurrency(Number(account.balance), account.currency)}
-              </p>
+                <div className="flex items-center gap-4">
+                  <div
+                    className="h-14 w-14 rounded-2xl flex items-center justify-center text-2xl"
+                    style={{ backgroundColor: (account.color || '#0D6B4B') + "15" }}
+                  >
+                    {accountEmojis[account.type] || account.icon || "🏦"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-900">{account.name}</h3>
+                      {!account.is_active && (
+                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                          Inactiva
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">{accountLabels[account.type] || account.type}</p>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className={`text-lg font-bold ${
+                        Number(account.balance) >= 0 ? "text-gray-900" : "text-red-600"
+                      }`}
+                    >
+                      {formatCurrency(Number(account.balance), account.currency)}
+                    </p>
+                    <ChevronRight className="w-5 h-5 text-gray-300 ml-auto mt-1" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </>
+        ) : (
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center">
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">🏦</span>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <Wallet className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No tienes cuentas
-          </h3>
-          <p className="text-gray-500 mb-4">
-            Agrega tu primera cuenta para empezar a rastrear tus finanzas.
-          </p>
-          <Link
-            href="/accounts/new"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            Crear Cuenta
-          </Link>
-        </div>
-      )}
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No tienes cuentas
+            </h3>
+            <p className="text-gray-500 mb-6">
+              Agrega tu primera cuenta para empezar a rastrear tus finanzas.
+            </p>
+            <Link
+              href="/accounts/new"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold text-white transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-emerald-500/25"
+              style={{ background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.primaryDark} 100%)` }}
+            >
+              <Plus className="h-5 w-5" />
+              Crear Cuenta
+            </Link>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
